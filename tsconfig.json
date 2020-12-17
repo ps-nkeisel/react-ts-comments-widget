@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "outDir": "dist",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "esnext",
+    "lib": ["es6", "es7", "esnext", "dom", "es2015.collection", "es2018.promise"],
+    "sourceMap": true,
+    "allowJs": true,
+    "jsx": "react",
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": false,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "suppressImplicitAnyIndexErrors": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "noUnusedLocals": true,
+    "removeComments": true,
+    "experimentalDecorators": true,
+    "baseUrl": "app",
+    "types": ["react", "react-dom", "node", "jest"]
+  },
+  "include": ["app", "interfaces"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "scripts",
+    "acceptance-tests",
+    "webpack",
+    "src/setupTests.ts",
+    "tools",
+    "**/*.spec.ts",
+    "**/*.test.ts"
+  ]
+}

@@ -1,0 +1,105 @@
+image: node:10.9.0
+
+definitions:
+  steps:
+    # SAVE STEPS USING YAML ANCHORS TO REUSE LATER
+    - step: &Test-and-Build-Dev
+        name: Installing Dependencies, Testing, and Building
+        caches:
+          - node
+        script:
+          # Generates a .npmrc file configured for installing private modules:
+          # NPM_REGISTRY_URL: the full URL of your private registry defaults to registry.npmjs.org.
+          # NPM_TOKEN: secret token for installing private modules. This this token can be found in your .npmrc, after logging in.
+          - printf "//`node -p \"require('url').parse('https://registry.npmjs.org').host\"`/:_authToken=${NPM_TOKEN}\nregistry=https://registry.npmjs.org\n" >> ~/.npmrc
+          # Install Dependencies
+          - npm i
+          # Lint Files
+          - npm run lint
+          # Run tests
+          - npm run test
+            # Run build for dev
+          - npm run build:dev
+        artifacts:
+          - dist/**
+    - step: &Test-and-Build-Prod
+        name: Installing Dependencies, Testing, and Building
+        caches:
+          - node
+        script:
+          # Generates a .npmrc file configured for installing private modules:
+          # NPM_REGISTRY_URL: the full URL of your private registry defaults to registry.npmjs.org.
+          # NPM_TOKEN: secret token for installing private modules. This this token can be found in your .npmrc, after logging in.
+          - printf "//`node -p \"require('url').parse('https://registry.npmjs.org').host\"`/:_authToken=${NPM_TOKEN}\nregistry=https://registry.npmjs.org\n" >> ~/.npmrc
+          # Install Dependencies
+          - npm i
+          # Lint Files
+          - npm run lint
+          # Run tests
+          - npm run test
+            # Run build for dev
+          - npm run build
+        artifacts:
+          - dist/**
+
+pipelines:
+  default:
+    - step: *Test-and-Build-Dev
+    - step:
+        name: Deploying
+        deployment: test
+        image: python:3.6.7
+        script:
+          - ls dist
+          # Install aws CLI
+          - pip install awscli
+          - aws --version
+          # Deploy files to Digital Ocean Spaces
+          - aws s3 cp ./dist/index.html s3://$TEST_BUCKET_NAME/widgets/$BITBUCKET_BRANCH/ --endpoint=$DIGITALOCEAN_ENDPOINT --acl=public-read-write
+          - aws s3 cp ./dist/authentication-progress.html s3://$TEST_BUCKET_NAME/widgets/$BITBUCKET_BRANCH/ --endpoint=$DIGITALOCEAN_ENDPOINT --acl=public-read-write
+  branches:
+    develop:
+      - step: *Test-and-Build-Dev
+      - step:
+          name: Deploying
+          deployment: test
+          image: python:3.6.7
+          script:
+            - ls dist
+            # Install aws CLI
+            - pip install awscli
+            - aws --version
+            # Deploy files to Digital Ocean Spaces
+            - aws s3 cp ./dist/index.html s3://$TEST_BUCKET_NAME/widgets/ --endpoint=$DIGITALOCEAN_ENDPOINT --acl=public-read-write
+            - aws s3 cp ./dist/authentication-progress.html s3://$TEST_BUCKET_NAME/widgets/ --endpoint=$DIGITALOCEAN_ENDPOINT --acl=public-read-write
+    master:
+      - step: *Test-and-Build-Prod
+      - step:
+          name: Deploying
+          deployment: production
+          trigger: manual
+          script:
+            - ls dist
+            # Setup SSH
+            - mkdir -p ~/.ssh
+            - (umask  077 ; echo $PROD_SSH | base64 --decode > ~/.ssh/id_rsa)
+            # Upload Files to the first server
+            - scp -i ~/.ssh/id_rsa ./dist/index.html root@178.128.98.215:/var/www/html/widgets
+            - scp -i ~/.ssh/id_rsa ./dist/authentication-progress.html root@178.128.98.215:/var/www/html/widgets
+            # Upload Files to the second server
+            - scp -i ~/.ssh/id_rsa ./dist/index.html root@178.128.28.148:/var/www/html/widgets
+            - scp -i ~/.ssh/id_rsa ./dist/authentication-progress.html root@178.128.28.148:/var/www/html/widgets
+    staging:
+      - step: *Test-and-Build-Prod
+      - step:
+          name: Deploying
+          deployment: staging
+          image: python:3.6.7
+          script:
+            - ls dist
+            # Install aws CLI
+            - pip install awscli
+            - aws --version
+            # Deploy files to Digital Ocean Spaces
+            - aws s3 cp ./dist/index.html s3://$STAGING_BUCKET_NAME/widgets/ --endpoint=$DIGITALOCEAN_ENDPOINT --acl=public-read-write
+            - aws s3 cp ./dist/authentication-progress.html s3://$STAGING_BUCKET_NAME/widgets/ --endpoint=$DIGITALOCEAN_ENDPOINT --acl=public-read-write
